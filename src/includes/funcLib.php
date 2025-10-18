@@ -158,18 +158,16 @@ function generatePassword($opt) {
 	//* (c) Hitech Scripts 2003
 	//* For more information, visit http://www.hitech-scripts.com
 	//* modified for phpgiftreg by Chris Clonch
-	mt_srand((double) microtime() * 1000000);
-	$newstring = "";
-	if ($opt["password_length"] > 0) {
-		while(strlen($newstring) < $opt["password_length"]) {
-			switch (mt_rand(1,3)) {
-				case 1: $newstring .= chr(mt_rand(48,57)); break;  // 0-9
-				case 2: $newstring .= chr(mt_rand(65,90)); break;  // A-Z
-				case 3: $newstring .= chr(mt_rand(97,122)); break; // a-z
-			}
-		}
+	if ($opt["password_length"] > 8) {
+		$length = $opt["password_length"];
+	} else {
+		$length = 8;
 	}
-	return $newstring;
+	$bytes = random_bytes($length);
+	$newstring = bin2hex($bytes); // Or base64_encode($bytes);
+	$hash = password_hash($newstring, PASSWORD_BCRYPT);
+	}
+	return [$newstring, $hash];
 }
 
 function formatPrice($price, $opt) {
