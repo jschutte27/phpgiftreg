@@ -18,7 +18,7 @@ function getGlobalOptions() {
 		/* The PDO connection string.
 			http://www.php.net/manual/en/pdo.connections.php
 		*/
-		"pdo_connection_string" => $_ENV['DB_CONNECTION_STRING'] ?? "mysql:host=localhost;dbname=giftreg",
+		"pdo_connection_string" => $_ENV['DB_CONNECTION_STRING'] ?? "mysql:host=mysql;dbname=giftreg",
 
 		/* The database username and password. */
 		"pdo_username" => $_ENV['DB_USERNAME'] ?? "giftreg",
