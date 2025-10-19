@@ -158,18 +158,16 @@ function generatePassword($opt) {
 	//* (c) Hitech Scripts 2003
 	//* For more information, visit http://www.hitech-scripts.com
 	//* modified for phpgiftreg by Chris Clonch
-	mt_srand((double) microtime() * 1000000);
-	$newstring = "";
-	if ($opt["password_length"] > 0) {
-		while(strlen($newstring) < $opt["password_length"]) {
-			switch (mt_rand(1,3)) {
-				case 1: $newstring .= chr(mt_rand(48,57)); break;  // 0-9
-				case 2: $newstring .= chr(mt_rand(65,90)); break;  // A-Z
-				case 3: $newstring .= chr(mt_rand(97,122)); break; // a-z
-			}
-		}
+	if ($opt["password_length"] > 10) {
+		$length = $opt["password_length"];
+	} else {
+		$length = 10;
 	}
-	return $newstring;
+	$bytes = random_bytes($length);
+	$newstring = bin2hex($bytes); // Or base64_encode($bytes);
+	$hash = password_hash($newstring, PASSWORD_BCRYPT);
+
+	return [$newstring, $hash];
 }
 
 function formatPrice($price, $opt) {
@@ -206,5 +204,191 @@ function fixForJavaScript($s) {
 	$s = str_replace("\r\n","<br />",$s);
 	$s = str_replace("\n","<br />",$s);
 	return $s;
+}
+
+/**
+ * Generate a CSRF token and store it in the session
+ * @return string The generated CSRF token
+ */
+function generateCSRFToken() {
+	if (session_status() == PHP_SESSION_NONE) {
+		session_start();
+	}
+	
+	$token = bin2hex(random_bytes(32));
+	$_SESSION['csrf_token'] = $token;
+	$_SESSION['csrf_token_time'] = time();
+	
+	return $token;
+}
+
+/**
+ * Validate a CSRF token against the one stored in session
+ * @param string $token The token to validate
+ * @param int $maxAge Maximum age of token in seconds (default: 3600)
+ * @return bool True if token is valid, false otherwise
+ */
+function validateCSRFToken($token, $maxAge = 3600) {
+	if (session_status() == PHP_SESSION_NONE) {
+		session_start();
+	}
+	
+	// Check if token exists in session
+	if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time'])) {
+		return false;
+	}
+	
+	// Check token age
+	if (time() - $_SESSION['csrf_token_time'] > $maxAge) {
+		unset($_SESSION['csrf_token']);
+		unset($_SESSION['csrf_token_time']);
+		return false;
+	}
+	
+	// Use hash_equals to prevent timing attacks
+	$isValid = hash_equals($_SESSION['csrf_token'], $token);
+	
+	// Regenerate token after successful validation (one-time use)
+	if ($isValid) {
+		unset($_SESSION['csrf_token']);
+		unset($_SESSION['csrf_token_time']);
+	}
+	
+	return $isValid;
+}
+
+/**
+ * Get the current CSRF token, generating one if it doesn't exist
+ * @return string The CSRF token
+ */
+function getCSRFToken() {
+	if (session_status() == PHP_SESSION_NONE) {
+		session_start();
+	}
+	
+	if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time'])) {
+		return generateCSRFToken();
+	}
+	
+	// Check if token is expired
+	if (time() - $_SESSION['csrf_token_time'] > 3600) {
+		return generateCSRFToken();
+	}
+	
+	return $_SESSION['csrf_token'];
+}
+
+/**
+ * Sanitize output to prevent XSS attacks
+ * @param string $string The string to sanitize
+ * @param bool $allowHTML Whether to allow basic HTML tags
+ * @return string The sanitized string
+ */
+function sanitizeOutput($string, $allowHTML = false) {
+	if ($allowHTML) {
+		// Allow only safe HTML tags
+		$allowedTags = '<p><br><strong><em><u><a><ul><ol><li>';
+		$string = strip_tags($string, $allowedTags);
+		// Additional filtering for allowed tags
+		$string = preg_replace('/<a[^>]*href=["\']javascript:[^"\']*["\'][^>]*>/i', '<a>', $string);
+	} else {
+		$string = htmlspecialchars($string, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+	}
+	
+	return $string;
+}
+
+/**
+ * Secure session configuration
+ * @param array $opt Configuration options array
+ */
+function configureSecureSession($opt = null) {
+	// Get session timeout from config, default to 1 hour
+	$sessionTimeout = 3600; // Default 1 hour
+	if ($opt && isset($opt['session_timeout'])) {
+		$sessionTimeout = (int)$opt['session_timeout'];
+	}
+	
+	// Configure secure session settings
+	ini_set('session.cookie_httponly', 1);
+	ini_set('session.use_only_cookies', 1);
+	ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
+	ini_set('session.cookie_samesite', 'Strict');
+	
+	// Set session cookie parameters
+	session_set_cookie_params([
+		'lifetime' => $sessionTimeout,
+		'path' => '/',
+		'domain' => $_SERVER['HTTP_HOST'],
+		'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+		'httponly' => true,
+		'samesite' => 'Strict'
+	]);
+}
+
+/**
+ * Validate file upload security
+ * @param array $file The $_FILES array element
+ * @param array $allowedTypes Array of allowed MIME types
+ * @param int $maxSize Maximum file size in bytes
+ * @return array Array with 'valid' boolean and 'error' message
+ */
+function validateFileUpload($file, $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'], $maxSize = 5242880) {
+	$result = ['valid' => false, 'error' => ''];
+	
+	// Check if file was uploaded
+	if (!isset($file['tmp_name']) || $file['error'] !== UPLOAD_ERR_OK) {
+		$result['error'] = 'File upload error occurred.';
+		return $result;
+	}
+	
+	// Check file size
+	if ($file['size'] > $maxSize) {
+		$result['error'] = 'File size exceeds maximum allowed size.';
+		return $result;
+	}
+	
+	// Verify MIME type
+	$finfo = finfo_open(FILEINFO_MIME_TYPE);
+	$mimeType = finfo_file($finfo, $file['tmp_name']);
+	finfo_close($finfo);
+	
+	if (!in_array($mimeType, $allowedTypes)) {
+		$result['error'] = 'File type not allowed.';
+		return $result;
+	}
+	
+	// Additional checks for images
+	if (strpos($mimeType, 'image/') === 0) {
+		$imageInfo = getimagesize($file['tmp_name']);
+		if ($imageInfo === false) {
+			$result['error'] = 'Invalid image file.';
+			return $result;
+		}
+	}
+	
+	$result['valid'] = true;
+	return $result;
+}
+
+/**
+ * Generate safe filename for uploads
+ * @param string $originalName The original filename
+ * @return string Safe filename
+ */
+function generateSafeFilename($originalName) {
+	$pathInfo = pathinfo($originalName);
+	$extension = isset($pathInfo['extension']) ? strtolower($pathInfo['extension']) : '';
+	
+	// Generate random filename
+	$filename = bin2hex(random_bytes(16));
+	
+	// Add extension if valid
+	$allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+	if (in_array($extension, $allowedExtensions)) {
+		$filename .= '.' . $extension;
+	}
+	
+	return $filename;
 }
 ?>

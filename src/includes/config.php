@@ -18,102 +18,101 @@ function getGlobalOptions() {
 		/* The PDO connection string.
 			http://www.php.net/manual/en/pdo.connections.php
 		*/
-		"pdo_connection_string" => "mysql:host=mysql;dbname=giftreg",
+		"pdo_connection_string" => $_ENV['DB_CONNECTION_STRING'] ?? "mysql:host=mysql;dbname=giftreg",
 
 		/* The database username and password. */
-		"pdo_username" => "giftreg",
-		"pdo_password" => "also_giftreg",
+		"pdo_username" => $_ENV['DB_USERNAME'] ?? "giftreg",
+		"pdo_password" => $_ENV['DB_PASSWORD'] ?? "changeme_default_password",
 
 		/* The maximum number of days before an event which produces a notification. */
-		"event_threshold" => "60",
+		"event_threshold" => $_ENV['EVENT_THRESHOLD'] ?? "60",
 
 		/* Whether or not requesting to shop for someone is immediately approved. 
 			0 = auto-approve,
 			1 = require approval
 		*/
-		"shop_requires_approval" => 1,
+		"shop_requires_approval" => (int)($_ENV['SHOP_REQUIRES_APPROVAL'] ?? 1),
 
 		/* Whether or not requesting a new account is immediately approved.
 			0 = auto-approve,
 			1 = require administrator approval
 		*/
-		"newuser_requires_approval" => 1,
+		"newuser_requires_approval" => (int)($_ENV['NEWUSER_REQUIRES_APPROVAL'] ?? 1),
 
 		/* Whether or not whom an item is reserved/bought by is hidden. */
-		"anonymous_purchasing" => 0,
+		"anonymous_purchasing" => (int)($_ENV['ANONYMOUS_PURCHASING'] ?? 0),
 
 		/* The number of your items that show on each page. */
-		"items_per_page" => 10,
+		"items_per_page" => (int)($_ENV['ITEMS_PER_PAGE'] ?? 10),
 
 		/* The e-mail From: header. */
-		"email_from" => "webmaster@" . $_SERVER['SERVER_NAME'],
+		"email_from" => $_ENV['EMAIL_FROM'] ?? ("webmaster@" . ($_SERVER['SERVER_NAME'] ?? 'localhost')),
 
 		/* The e-mail Reply-To: header. */
-		"email_reply_to" => "rwalberg@mts.net",
+		"email_reply_to" => $_ENV['EMAIL_REPLY_TO'] ?? "noreply@" . ($_SERVER['SERVER_NAME'] ?? 'localhost'),
 
 		/* The e-mail X-Mailer header. */
-		"email_xmailer" => "PHP/" . phpversion(),
+		"email_xmailer" => $_ENV['EMAIL_XMAILER'] ?? ("PHP/" . phpversion()),
 
 		/* Whether or not to show brief blurbs in certain spots which describe how 
 			features work.
 			0 = don't help text,
 			1 = show help text
 		*/
-		"show_helptext" => 0,
+		"show_helptext" => (int)($_ENV['SHOW_HELPTEXT'] ?? 0),
 
 		/* Whether or not clicking the Delete Item link requires a JavaScript-based
 			confirmation.
 			0 = don't show confirmation,
 			1 = show confirmation
 		*/
-		"confirm_item_deletes" => 0,
+		"confirm_item_deletes" => (int)($_ENV['CONFIRM_ITEM_DELETES'] ?? 0),
 
 		/* Whether or not to allow multiple quantities of an item. */
-		"allow_multiples" => 1,
+		"allow_multiples" => (int)($_ENV['ALLOW_MULTIPLES'] ?? 1),
 
 		/* This is prefixed to all currency values, set it as appropriate for your currency. */
-		"currency_symbol" => "$",	// US or other dollars      
-		//"currency_symbol" => "&#163;",	// Pound (£) symbol
-		//"currency_symbol" => "&#165;",	// Yen
-		//"currency_symbol" => "&#8364;",	// Euro
-		//"currency_symbol" => "&euro;",	// Euro alternative
+		"currency_symbol" => $_ENV['CURRENCY_SYMBOL'] ?? "$",
 
 		/* The date format used in DateTime::format()
 			http://php.net/manual/en/function.date.php */
-		"date_format" => "m/d/Y",
+		"date_format" => $_ENV['DATE_FORMAT'] ?? "m/d/Y",
 
 		/* If this is set to something other than "" then phpgiftreg will expect that
 			string to prefix all tables in this installation.  Useful for running
 			multiple phpgiftreg installations in the same MySQL database.
 		*/
-		"table_prefix" => "",
+		"table_prefix" => $_ENV['TABLE_PREFIX'] ?? "",
 		//"table_prefix" => "gift_",		// all tables must be prefixed by `gift_'
 
 		/* Whether or not your own events show up on the home page.
 			0 = don't show my own events,
 			1 = show my own events
 		*/
-		"show_own_events" => 1,
+		"show_own_events" => (int)($_ENV['SHOW_OWN_EVENTS'] ?? 1),
 
 		/* The length of random generated passwords. */
-		"password_length" => 8,
+		"password_length" => (int)($_ENV['PASSWORD_LENGTH'] ?? 10),
 
 		/* Whether or not to hide the price when it's $0.00.
 			0 = don't hide it,
 			1 = hide it
 		*/
-		"hide_zero_price" => 1,
+		"hide_zero_price" => (int)($_ENV['HIDE_ZERO_PRICE'] ?? 1),
 
 		/* Whether or not to hash passwords.  Your version of MySQL may or may not
 			support it.
-			"MD5" = use MySQL's MD5() function,
-			"SHA1" = use MySQL's SHA1() function,
+			"MD5" = use PHP's MD5() function,
+			"SHA1" = use PHP's SHA1() function,
+			"BCRYPT" = use password_hash with bcrypt
 			"" = use nothing (store passwords in plaintext).
 			If you switch this on, you're going to need to do a
 				UPDATE users SET password = MD5(password)
 			on your database to convert the passwords.  This operation is NON-REVERSIBLE!
+			Using BCRYPT is the most secure!
+			Changing password hash types will require all users to reset their passwords.
 		*/
-		"password_hasher" => "MD5",
+		"password_hasher" => $_ENV['PASSWORD_HASHER'] ?? "BCRYPT",
 
 		/* Whether or not to allow image uploads.  If on, the next option must point to
 			a valid subdirectory that is writeable by the web server.  The setup.php
@@ -121,18 +120,23 @@ function getGlobalOptions() {
 			0 = don't allow images,
 			1 = allow images
 		*/
-		"allow_images" => 1,
+		"allow_images" => (int)($_ENV['ALLOW_IMAGES'] ?? 1),
 
 		/* The *sub*-directory we we can store item images.  If you don't want to
 			allow images to be attached to items, leave this variable empty ("").
 			Trailing / is optional.
 		*/
-		"image_subdir" => "item_images",
+		"image_subdir" => $_ENV['IMAGE_SUBDIR'] ?? "item_images",
 		
 		/* The number of minutes in between subscription notifications so the subscribers
 			don't get flooded with updates.
 		*/
-		"notify_threshold_minutes" => 60
+		"notify_threshold_minutes" => (int)($_ENV['NOTIFY_THRESHOLD_MINUTES'] ?? 60),
+
+		/* Session timeout in seconds. Default is 3600 seconds (1 hour).
+			Set to 0 to disable session timeout.
+		*/
+		"session_timeout" => (int)($_ENV['SESSION_TIMEOUT'] ?? 3600)
 	);
 }
 ?>
