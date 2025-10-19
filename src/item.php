@@ -18,8 +18,12 @@
 
 require_once(dirname(__FILE__) . "/includes/funcLib.php");
 require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
+
 $smarty = new MySmarty();
 $opt = $smarty->opt(); // Get application options from Smarty instance
+
+// Configure secure session
+configureSecureSession($opt);
 
 session_start();
 if (!isset($_SESSION["userid"])) {
@@ -33,7 +37,6 @@ else {
 // for security, let's make sure that if an itemid was passed in, it belongs
 // to $userid.  all operations on this page should only be performed by
 // the item's owner. This is a security check.
-// the item's owner.
 if (isset($_REQUEST["itemid"]) && $_REQUEST["itemid"] != "") {
 	try {
 		$stmt = $smarty->dbh()->prepare("SELECT * FROM {$opt["table_prefix"]}items WHERE userid = ? AND itemid = ?");
@@ -41,32 +44,39 @@ if (isset($_REQUEST["itemid"]) && $_REQUEST["itemid"] != "") {
 		$stmt->bindValue(2, (int) $_REQUEST["itemid"], PDO::PARAM_INT);
 		$stmt->execute();
 		if (!$stmt->fetch()) { // If no row is returned, the item doesn't belong to the user
-			die("Nice try! (That's not your item.)");
+			header("Location: " . getFullPath("index.php?error=" . urlencode("Access denied.")));
+			exit;
 		}
 	}
 	catch (PDOException $e) {
-		die("sql exception: " . $e->getMessage());
-		// Handle database errors during ownership check
+		error_log("Item ownership check error: " . $e->getMessage());
+		header("Location: " . getFullPath("index.php?error=" . urlencode("Database error occurred.")));
+		exit;
 	}
 }
 
 $action = "";
-if (!empty($_REQUEST["action"])) {
-	$action = $_REQUEST["action"];
-	// Note: Using REQUEST (which includes GET and POST) for actions that modify data
-	// is insecure. Should explicitly use POST requests for insert/update/delete.
+// Handle POST requests for item modifications (secure)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST["action"])) {
+	// Validate CSRF token for all POST actions
+	if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
+		header("Location: " . getFullPath("index.php?error=" . urlencode("Invalid request. Please try again.")));
+		exit;
+	}
+	
+	$action = $_POST["action"];
 	// --- Data Validation for Insert/Update Actions ---
 	
 	if ($action == "insert" || $action == "update") {
 		/* validate the data. */
-		$description = trim($_REQUEST["description"]);
-		$price = str_replace(",","",trim($_REQUEST["price"]));
-		$source = trim($_REQUEST["source"]);
-		$url = trim($_REQUEST["url"]);
-		$category = trim($_REQUEST["category"]);
-		$ranking = $_REQUEST["ranking"];
-		$comment = $_REQUEST["comment"];
-		$quantity = (int) $_REQUEST["quantity"];
+		$description = trim($_POST["description"]);
+		$price = str_replace(",","",trim($_POST["price"]));
+		$source = trim($_POST["source"]);
+		$url = trim($_POST["url"]);
+		$category = trim($_POST["category"]);
+		$ranking = $_POST["ranking"];
+		$comment = $_POST["comment"];
+		$quantity = (int) $_POST["quantity"];
 
 		$haserror = false;
 		if ($description == "") {
@@ -96,29 +106,39 @@ if (!empty($_REQUEST["action"])) {
 	}
 
 	// --- Handle Image Upload/Removal ---
-	if (isset($haserror) && !$haserror && isset($_REQUEST["image"])) {
-		if ($_REQUEST["image"] == "remove" || $_REQUEST["image"] == "replace") {
-			deleteImageForItem((int) $_REQUEST["itemid"], $smarty->dbh(), $smarty->opt());
+	if (isset($haserror) && !$haserror && isset($_POST["image"])) {
+		if ($_POST["image"] == "remove" || $_POST["image"] == "replace") {
+			deleteImageForItem((int) $_POST["itemid"], $smarty->dbh(), $smarty->opt());
 		}
-		if ($_REQUEST["image"] == "upload" || $_REQUEST["image"] == "replace") {
-			/* TODO: verify that it's an image using $_FILES["imagefile"]["type"] */
-			// what's the extension?
-			$parts = pathinfo($_FILES["imagefile"]["name"]);
-			$uploaded_file_ext = $parts['extension'];
-			// what is full path to store images?  get it from the currently executing script.
-			// Note: This assumes the image subdir is relative to the script directory, which might not be ideal.
-			$parts = pathinfo($_SERVER["SCRIPT_FILENAME"]);
-			$upload_dir = $parts['dirname'];
-			// generate a temporary file in the configured directory.
-			$temp_name = tempnam($upload_dir . "/" . $opt["image_subdir"],"");
-			// unlink it, we really want an extension on that.
-			unlink($temp_name);
-			// here's the name we really want to use.  full path is included.
-			$image_filename = $temp_name . "." . $uploaded_file_ext;
-			// move the PHP temporary file to that filename.
-			move_uploaded_file($_FILES["imagefile"]["tmp_name"],$image_filename);
-			// the name we're going to record in the DB is the filename without the path.
-			$image_base_filename = basename($image_filename);
+		if ($_POST["image"] == "upload" || $_POST["image"] == "replace") {
+			// Validate the uploaded file
+			$uploadValidation = validateFileUpload($_FILES["imagefile"]);
+			if (!$uploadValidation['valid']) {
+				$haserror = true;
+				$image_error = $uploadValidation['error'];
+			} else {
+				// Generate a safe filename
+				$image_base_filename = generateSafeFilename($_FILES["imagefile"]["name"]);
+				
+				// Create uploads directory outside web root if it doesn't exist
+				$upload_dir = dirname($_SERVER["SCRIPT_FILENAME"]) . "/" . $opt["image_subdir"];
+				if (!is_dir($upload_dir)) {
+					if (!mkdir($upload_dir, 0755, true)) {
+						$haserror = true;
+						$image_error = "Failed to create upload directory.";
+					}
+				}
+				
+				if (!$haserror) {
+					$image_filename = $upload_dir . "/" . $image_base_filename;
+					
+					// Move the uploaded file to the secure location
+					if (!move_uploaded_file($_FILES["imagefile"]["tmp_name"], $image_filename)) {
+						$haserror = true;
+						$image_error = "Failed to upload file.";
+					}
+				}
+			}
 		}
 	}
 	
@@ -128,34 +148,36 @@ if (!empty($_REQUEST["action"])) {
 			/* find out if this item is bought or reserved. */
 			$stmt = $smarty->dbh()->prepare("SELECT a.userid, a.quantity, a.bought, i.description FROM {$opt["table_prefix"]}allocs a LEFT OUTER JOIN {$opt["table_prefix"]}items i ON i.itemid = a.itemid WHERE a.itemid = ?");
 			// Fetch allocation details for the item being deleted
-			$stmt->bindValue(1, (int) $_REQUEST["itemid"], PDO::PARAM_INT);
+			$stmt->bindValue(1, (int) $_POST["itemid"], PDO::PARAM_INT);
 			$stmt->execute();
 			$description = ""; // need this outside of the while block.
 			while ($row = $stmt->fetch()) {
 				$buyerid = $row["userid"];
 				$quantity = $row["quantity"];
 				$bought = $row["bought"];
-				$description = $row["description"];	// need this for descriptions.
+				$description = sanitizeOutput($row["description"]);	// need this for descriptions.
 				// Send message to users who had allocated this item
 				if ($buyerid != null) {
 					sendMessage($userid,
 						$buyerid,
-						"$description that you " . (($bought == 1) ? "bought" : "reserved") . " $quantity of for {$_SESSION["fullname"]} has been deleted.  Check your reservation/purchase to ensure it's still needed.",
+						"$description that you " . (($bought == 1) ? "bought" : "reserved") . " $quantity of for " . sanitizeOutput($_SESSION["fullname"]) . " has been deleted.  Check your reservation/purchase to ensure it's still needed.",
 						$smarty->dbh(),
 						$smarty->opt());
 				}
 			}
 	
 			// Delete the associated image file
-			deleteImageForItem((int) $_REQUEST["itemid"], $smarty->dbh(), $smarty->opt());
+			deleteImageForItem((int) $_POST["itemid"], $smarty->dbh(), $smarty->opt());
 
 			// Delete the item record
 			$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}items WHERE itemid = ?");
-			$stmt->bindValue(1, (int) $_REQUEST["itemid"], PDO::PARAM_INT);
+			$stmt->bindValue(1, (int) $_POST["itemid"], PDO::PARAM_INT);
 			$stmt->execute();
 
-			// TODO: are we leaking allocs records here?
-			// Note: Allocations for this item should also be deleted. The current code doesn't explicitly do this after fetching them.
+			// Clean up any orphaned allocation records
+			$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}allocs WHERE itemid = ?");
+			$stmt->bindValue(1, (int) $_POST["itemid"], PDO::PARAM_INT);
+			$stmt->execute();
 		
 			stampUser($userid, $smarty->dbh(), $smarty->opt());
 			processSubscriptions($userid, $action, $description, $smarty->dbh(), $smarty->opt());
