@@ -22,12 +22,17 @@ require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
 $smarty = new MySmarty();
 $opt = $smarty->opt(); // Get application options from Smarty instance
 
-session_start();
+// Start secure session with proper configuration
+startSecureSession($opt);
+error_log("Index: Session started. Session ID: " . session_id());
+error_log("Index: Session data: " . print_r($_SESSION, true));
 if (!isset($_SESSION["userid"])) {
+	error_log("Index: No userid in session, redirecting to login");
 	header("Location: " . getFullPath("login.php"));
 	exit;
 }
 else {
+	error_log("Index: Session valid for user ID: " . $_SESSION["userid"]);
 	$userid = $_SESSION["userid"]; // Get the logged-in user's ID
 }
 

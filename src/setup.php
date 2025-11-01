@@ -65,11 +65,22 @@ if (isset($_POST["action"])) {
 		else die("No family was created.");
 
 		// 3. insert the user.
-		// Insert the initial admin user. Note: Password hashing is done directly in the SQL query here, which is unusual and depends on DB support.
-		$stmt = dbh($opt)->prepare("INSERT INTO {$opt["table_prefix"]}users(username,fullname,password,email,approved,admin,initialfamilyid) VALUES(?, ?, {$opt["password_hasher"]}(?), ?, 1, 1, ?)"); // Password hashing function from config
+		// Hash the password using the configured method
+		$hashed_password = $pwd;
+		if ($opt["password_hasher"] === "BCRYPT") {
+			$hashed_password = password_hash($pwd, PASSWORD_BCRYPT);
+		} elseif ($opt["password_hasher"] === "MD5") {
+			$hashed_password = md5($pwd);
+		} elseif ($opt["password_hasher"] === "SHA1") {
+			$hashed_password = sha1($pwd);
+		}
+		// Note: If password_hasher is empty or unknown, password is stored as plaintext
+		
+		// Insert the initial admin user with pre-hashed password
+		$stmt = dbh($opt)->prepare("INSERT INTO {$opt["table_prefix"]}users(username,fullname,password,email,approved,admin,initialfamilyid) VALUES(?, ?, ?, ?, 1, 1, ?)");
 		$stmt->bindParam(1, $username, PDO::PARAM_STR);
 		$stmt->bindParam(2, $fullname, PDO::PARAM_STR);
-		$stmt->bindParam(3, $pwd, PDO::PARAM_STR);
+		$stmt->bindParam(3, $hashed_password, PDO::PARAM_STR);
 		$stmt->bindParam(4, $email, PDO::PARAM_STR);
 		$stmt->bindParam(5, $familyid, PDO::PARAM_INT);
 		$stmt->execute();
