@@ -39,21 +39,28 @@ if (!empty($_POST["action"])) {
 	// --- Handle Change Password Action ---
 	if ($action == "changepwd") {
 		$password = $_POST["newpwd"];
-		$hash = password_hash($password, PASSWORD_BCRYPT);
-		try {
-			$stmt = $smarty->dbh()->prepare("UPDATE {$opt["table_prefix"]}users SET password = ? WHERE userid = ?");
-			// Bind the generated hash and the user ID to the prepared statement
-			$stmt->bindParam(1, $hash, PDO::PARAM_STR);
-			$stmt->bindParam(2, $userid, PDO::PARAM_INT);
+		
+		// Validate password meets minimum requirements
+		$passwordValidation = validatePassword($password, $opt);
+		if (!$passwordValidation['valid']) {
+			$message = $passwordValidation['error'];
+		} else {
+			$hash = password_hash($password, PASSWORD_BCRYPT);
+			try {
+				$stmt = $smarty->dbh()->prepare("UPDATE {$opt["table_prefix"]}users SET password = ? WHERE userid = ?");
+				// Bind the generated hash and the user ID to the prepared statement
+				$stmt->bindParam(1, $hash, PDO::PARAM_STR);
+				$stmt->bindParam(2, $userid, PDO::PARAM_INT);
 
-			$stmt->execute();
+				$stmt->execute();
 
-			header("Location: " . getFullPath("index.php?message=Password+changed."));
-			exit;
-		}
-		catch (PDOException $e) {
-			// Handle database errors
-			die("sql exception: " . $e->getMessage());
+				header("Location: " . getFullPath("index.php?message=Password+changed."));
+				exit;
+			}
+			catch (PDOException $e) {
+				// Handle database errors
+				die("sql exception: " . $e->getMessage());
+			}
 		}
 	}
 	// --- Handle Save Profile Action ---

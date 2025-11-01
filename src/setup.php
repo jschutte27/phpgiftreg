@@ -17,6 +17,7 @@
 //          admin user, and set up a default family.
 
 require_once(dirname(__FILE__) . "/includes/config.php");
+require_once(dirname(__FILE__) . "/includes/funcLib.php");
 
 $opt = getGlobalOptions();
 // Helper function to get a database connection (used only in this file)
@@ -47,6 +48,12 @@ if (isset($_POST["action"])) {
 		$familyname = $_POST["familyname"];
 		if (trim($familyname) == "") {
 			$familyname = "Default family";
+		}
+
+		// Validate password meets minimum requirements
+		$passwordValidation = validatePassword($pwd, $opt);
+		if (!$passwordValidation['valid']) {
+			die("Setup Error: " . $passwordValidation['error']);
 		}
 
 		// 1. create the family.
@@ -119,6 +126,7 @@ if (isset($_POST["action"])) {
 					},
 					"pwd": {
 						required: true,
+						minlength: <?php echo $opt['min_password_length']; ?>,
 						maxlength: 50
 					},
 					"confirmpwd": {
@@ -143,6 +151,7 @@ if (isset($_POST["action"])) {
 					},
 					"pwd": {
 						required: "The initial password is required.",
+						minlength: "The initial password must be at least <?php echo $opt['min_password_length']; ?> characters long.",
 						maxlength: "The initial password must be 50 characters or less."
 					},
 					"confirmpwd": {

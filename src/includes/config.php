@@ -94,6 +94,9 @@ function getGlobalOptions() {
 		/* The length of random generated passwords. */
 		"password_length" => (int)($_ENV['PASSWORD_LENGTH'] ?? 10),
 
+		/* The minimum required password length for user passwords. */
+		"min_password_length" => (int)($_ENV['MIN_PASSWORD_LENGTH'] ?? 8),
+
 		/* Whether or not to hide the price when it's $0.00.
 			0 = don't hide it,
 			1 = hide it
