@@ -21,11 +21,10 @@ require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
 $smarty = new MySmarty();
 $opt = $smarty->opt(); // Get application options from Smarty instance
 
-// Configure secure session before starting
-configureSecureSession($opt);
+// Start secure session with proper configuration
+startSecureSession($opt);
 
 if (isset($_GET["action"]) && $_GET["action"] == "logout") {
-    session_start();
     // Clear all session variables
     $_SESSION = array();
     
@@ -45,6 +44,7 @@ if (isset($_GET["action"]) && $_GET["action"] == "logout") {
 
 // --- Handle Login Attempt (POST) ---
 if (!empty($_POST["username"])) {
+	error_log("Login: Processing login attempt for username: " . $_POST["username"]);
 	$username = $_POST["username"];
 	// Note: Password is read directly from $_POST, which is okay before hashing, but handle with care.
 	$password = $_POST["password"];
@@ -58,10 +58,14 @@ if (!empty($_POST["username"])) {
 
 		$stmt->execute();
 		if ($row = $stmt->fetch()) {
+			// Debug: Log successful user lookup
+			error_log("Login: Found user '$username' with ID: " . $row["userid"]);
+			
 			if (password_verify($password,$row["password"])) {
-				$lifetime = 86400; // 24 hours
-				session_set_cookie_params($lifetime);
-				session_start();
+				// Debug: Log successful password verification
+				error_log("Login: Password verified for user '$username'");
+				
+				// Session is already started by startSecureSession() call at top of file
 				// Regenerate session ID to prevent session fixation attacks
 				session_regenerate_id(true);
 				$_SESSION["userid"] = $row["userid"];
@@ -69,12 +73,24 @@ if (!empty($_POST["username"])) {
 				$_SESSION["admin"] = $row["admin"];
 				$_SESSION["login_time"] = time();
 			
-				header("Location: " . getFullPath("index.php"));
+				// Debug: Log session creation
+				error_log("Login: Session created for user '$username', redirecting to index.php");
+				error_log("Login: Session ID: " . session_id());
+				error_log("Login: Session data: " . print_r($_SESSION, true));
+				
+				$redirectUrl = getFullPath("index.php");
+				error_log("Login: Redirect URL: " . $redirectUrl);
+				
+				header("Location: " . $redirectUrl);
 				exit;
 			} else {
+				// Debug: Log password verification failure
+				error_log("Login: Password verification failed for user '$username'");
 				$loginError = "Invalid username or password.";
 			}
 		} else {
+			// Debug: Log user not found
+			error_log("Login: User '$username' not found or not approved");
 			$loginError = "Invalid username or password.";
 		}
 	}
@@ -84,6 +100,7 @@ if (!empty($_POST["username"])) {
 	}
 
 	// If login failed, re-display the login form with the entered username
+	error_log("Login: Login failed for username: " . $username . " - Error: " . $loginError);
 	$smarty->assign('username', sanitizeOutput($username));
 	$smarty->assign('login_error', $loginError);
 	$smarty->display('login.tpl');

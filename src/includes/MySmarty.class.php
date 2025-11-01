@@ -1,6 +1,6 @@
 <?php
 
-define('SMARTY_DIR', dirname(__FILE__) . "/smarty-3.1.48/libs/");
+define('SMARTY_DIR', dirname(__FILE__) . "/smarty-4.5.6/libs/");
 require_once(SMARTY_DIR . "Smarty.class.php");
 require_once(dirname(__FILE__) . "/config.php");
 
@@ -9,6 +9,9 @@ class MySmarty extends Smarty {
 		parent::__construct();
 
 		date_default_timezone_set("GMT+0");
+		
+		// Register the getFullPath function as a Smarty modifier/function
+		$this->registerPlugin('function', 'getFullPath', [$this, 'getFullPathPlugin']);
 	}
 
 	public function dbh() {
@@ -31,6 +34,20 @@ class MySmarty extends Smarty {
 		parent::assign('isadmin', isset($_SESSION['admin']) ? $_SESSION['admin'] : false);
 		parent::assign('opt', $this->opt());
 		parent::display($template, $cache_id, $compile_id);
+	}
+	
+	/**
+	 * Smarty plugin wrapper for getFullPath function
+	 */
+	public function getFullPathPlugin($params, $smarty) {
+		if (!isset($params['url'])) {
+			trigger_error("getFullPath: missing 'url' parameter", E_USER_WARNING);
+			return '';
+		}
+		
+		// Import the global getFullPath function
+		require_once(dirname(__FILE__) . "/funcLib.php");
+		return getFullPath($params['url']);
 	}
 }
 ?>

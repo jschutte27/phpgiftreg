@@ -8,10 +8,9 @@ server's setup procedure where necessary.
 2. Create MySQL database
 3. Create MySQL tables
 4. Create MySQL user (optional)
-5. Configure db.php
-6. Configure config.php (optional)
-7. Create Apache alias
-8. Set up the initial family and user using setup.php
+5. Configure config.php (optional)
+6. Create Apache alias
+7. Set up the initial family and user using setup.php
 
 =============================================================================
 

@@ -18,7 +18,8 @@ require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
 $smarty = new MySmarty();
 $opt = $smarty->opt();
 
-session_start();
+// Start secure session with proper configuration
+startSecureSession($opt);
 if (!isset($_SESSION["userid"])) {
 	header("Location: " . getFullPath("login.php"));
 	exit;
@@ -62,15 +63,15 @@ $action = isset($_GET["action"]) ? $_GET["action"] : "";
 
 if ($action == "insert" || $action == "update") {
 	/* validate the data. */
-	$description = trim($_GET["description"]);
+	$description = isset($_GET["description"]) ? trim($_GET["description"]) : "";
 	try {
-		$eventdate = new DateTime($_GET["eventdate"]);
+		$eventdate = isset($_GET["eventdate"]) ? new DateTime($_GET["eventdate"]) : FALSE;
 	}
 	catch (Exception $e) {
 		$eventdate = FALSE;
 	}
-	$recurring = (strtoupper($_GET["recurring"]) == "ON" ? 1 : 0);
-	$systemevent = (strtoupper($_GET["systemevent"]) == "ON" ? 1 : 0);
+	$recurring = (isset($_GET["recurring"]) && strtoupper($_GET["recurring"]) == "ON" ? 1 : 0);
+	$systemevent = (isset($_GET["systemevent"]) && strtoupper($_GET["systemevent"]) == "ON" ? 1 : 0);
 		
 	$haserror = false;
 	if ($description == "") {

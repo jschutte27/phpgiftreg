@@ -22,7 +22,7 @@ function getGlobalOptions() {
 
 		/* The database username and password. */
 		"pdo_username" => $_ENV['DB_USERNAME'] ?? "giftreg",
-		"pdo_password" => $_ENV['DB_PASSWORD'] ?? "changeme_default_password",
+		"pdo_password" => $_ENV['DB_PASSWORD'] ?? "also_giftreg",
 
 		/* The maximum number of days before an event which produces a notification. */
 		"event_threshold" => $_ENV['EVENT_THRESHOLD'] ?? "60",

@@ -23,6 +23,18 @@ function getFullPath($url) {
 	return $fp;
 }
 
+/**
+ * Start a secure session with proper configuration
+ * This ensures all pages use the same session settings
+ */
+function startSecureSession($opt = null) {
+	// Only configure and start if session hasn't been started yet
+	if (session_status() === PHP_SESSION_NONE) {
+		configureSecureSession($opt);
+		session_start();
+	}
+}
+
 function jsEscape($s) {
 	return str_replace("\"","\\u0022",str_replace("'","\\'",str_replace("\r\n","\\r\\n",$s)));
 }
@@ -316,14 +328,19 @@ function configureSecureSession($opt = null) {
 	ini_set('session.cookie_samesite', 'Strict');
 	
 	// Set session cookie parameters
-	session_set_cookie_params([
+	$cookieParams = [
 		'lifetime' => $sessionTimeout,
 		'path' => '/',
-		'domain' => $_SERVER['HTTP_HOST'],
+		'domain' => '', // Let PHP handle domain automatically
 		'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
 		'httponly' => true,
 		'samesite' => 'Strict'
-	]);
+	];
+	
+	// Debug: Log session configuration
+	error_log("Session config: HTTP_HOST=" . $_SERVER['HTTP_HOST'] . ", secure=" . ($cookieParams['secure'] ? 'true' : 'false') . ", lifetime=" . $cookieParams['lifetime']);
+	
+	session_set_cookie_params(lifetime_or_options: $cookieParams);
 }
 
 /**
