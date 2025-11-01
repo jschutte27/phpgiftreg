@@ -408,4 +408,24 @@ function generateSafeFilename($originalName) {
 	
 	return $filename;
 }
+
+/**
+ * Validate password meets minimum requirements
+ * @param string $password The password to validate
+ * @param array $opt Configuration options array
+ * @return array Array with 'valid' boolean and 'error' message
+ */
+function validatePassword($password, $opt) {
+	$result = ['valid' => false, 'error' => ''];
+	
+	$minLength = isset($opt['min_password_length']) ? (int)$opt['min_password_length'] : 8;
+	
+	if (strlen($password) < $minLength) {
+		$result['error'] = "Password must be at least {$minLength} characters long.";
+		return $result;
+	}
+	
+	$result['valid'] = true;
+	return $result;
+}
 ?>

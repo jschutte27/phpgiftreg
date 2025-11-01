@@ -35,6 +35,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 				rules: {
 					newpwd: {
 						required: true,
+						minlength: {$opt.min_password_length},
 						maxlength: 50
 					},
 					confpwd: {
@@ -46,6 +47,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 				messages: {
 					newpwd: {
 						required: "Password is required.",
+						minlength: "Password must be at least {$opt.min_password_length} characters long.",
 						maxlength: "Password must be 50 characters or less."
 					},
 					confpwd: {
