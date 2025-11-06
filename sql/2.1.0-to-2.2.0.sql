@@ -20,8 +20,12 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
   `expires_at` datetime NOT NULL,
   `used` tinyint(1) NOT NULL default '0',
   PRIMARY KEY (`token_id`),
-  FOREIGN KEY (`userid`) REFERENCES `users`(`userid`) ON DELETE CASCADE
+  KEY `idx_userid` (`userid`)
 );
 
 -- Clean up expired and used tokens periodically (consider adding a cron job)
 -- DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = 1;
+
+-- Add indexes for better performance
+CREATE INDEX idx_password_reset_tokens_userid ON password_reset_tokens(userid);
+CREATE INDEX idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
