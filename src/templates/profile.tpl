@@ -92,6 +92,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 	<div class="container" style="padding-top: 60px;">
 		<div class="row">
 			<div class="span8 offset2">
+{if !$is_oauth_user}
 <form name="changepwdform" id="changepwdform" action="profile.php" method="POST" class="well form-horizontal">
 	<input type="hidden" name="action" value="changepwd">
 	<fieldset>
@@ -114,6 +115,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 		</div>
 	</fieldset>
 </form>
+{else}
+<div class="well">
+	<h3>Password Settings</h3>
+	<p class="text-info">You are signed in with Google. Password changes are managed through your Google account.</p>
+</div>
+{/if}
 			</div>
 		</div>
 		<div class="row">

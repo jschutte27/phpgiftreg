@@ -101,7 +101,7 @@ if (!empty($_POST["action"])) {
 
 // --- Fetch User Data for Display ---
 try {
-	$stmt = $smarty->dbh()->prepare("SELECT fullname, email, email_msgs, comment FROM {$opt["table_prefix"]}users WHERE userid = ?");
+	$stmt = $smarty->dbh()->prepare("SELECT fullname, email, email_msgs, comment, google_id FROM {$opt["table_prefix"]}users WHERE userid = ?");
 	$stmt->bindParam(1, $userid, PDO::PARAM_INT); // Bind the logged-in user's ID
 
 	$stmt->execute();
@@ -110,6 +110,7 @@ try {
 		$smarty->assign('email', $row["email"]);
 		$smarty->assign('email_msgs', $row["email_msgs"]);
 		$smarty->assign('comment', $row["comment"]);
+		$smarty->assign('is_oauth_user', !empty($row["google_id"]));
 		$smarty->display('profile.tpl');
 	}
 	else { // Should not happen if session check passed, but good practice

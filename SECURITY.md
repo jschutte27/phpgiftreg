@@ -158,7 +158,7 @@ For security issues or questions about this implementation:
 
 ## Version History
 
-- **v2.0-secure**: Critical security vulnerabilities addressed
+- **v2.2.0**: Critical security vulnerabilities addressed
   - CSRF protection implemented
   - File upload security enhanced
   - Session security improved

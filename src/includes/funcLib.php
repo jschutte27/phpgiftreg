@@ -325,7 +325,7 @@ function configureSecureSession($opt = null) {
 	ini_set('session.cookie_httponly', 1);
 	ini_set('session.use_only_cookies', 1);
 	ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
-	ini_set('session.cookie_samesite', 'Strict');
+	ini_set('session.cookie_samesite', 'Lax');
 	
 	// Set session cookie parameters
 	$cookieParams = [
@@ -334,7 +334,7 @@ function configureSecureSession($opt = null) {
 		'domain' => '', // Let PHP handle domain automatically
 		'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
 		'httponly' => true,
-		'samesite' => 'Strict'
+		'samesite' => 'Lax'
 	];
 	
 	// Debug: Log session configuration

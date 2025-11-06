@@ -1,3 +1,10 @@
 src/templates_c
 src/item_images
 
+.env
+vendor
+node_modules
+*.log
+
+vendor/**
+composer.lock

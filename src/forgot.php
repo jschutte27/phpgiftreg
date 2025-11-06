@@ -26,30 +26,47 @@ if (isset($_POST["action"]) && $_POST["action"] == "forgot") {
 
 	try {
 		// make sure that username is valid 
-		$stmt = $smarty->dbh()->prepare("SELECT email FROM {$opt["table_prefix"]}users WHERE username = ?");
+		$stmt = $smarty->dbh()->prepare("SELECT userid, email FROM {$opt["table_prefix"]}users WHERE username = ?");
 		$stmt->bindParam(1, $username, PDO::PARAM_STR); // Bind the submitted username
 			
 		$stmt->execute();
 		if ($row = $stmt->fetch()) {
+			$userid = $row["userid"];
 			$email = $row["email"];
 		
 			if ($email == "")
 				// User exists but has no email address configured
-				$error = "The username '" . $username . "' does not have an e-mail address, so the password could not be sent.";
+				$error = "The username '" . $username . "' does not have an e-mail address, so the password reset request could not be sent.";
 			else {
-				[$pwd, $hash] = generatePassword($opt);
-				$stmt = $smarty->dbh()->prepare("UPDATE {$opt["table_prefix"]}users SET password = ? WHERE username = ?");
-				$stmt->bindParam(1, $hash, PDO::PARAM_STR);
-				$stmt->bindParam(2, $username, PDO::PARAM_STR);
-
+				// Generate a unique token (64 character hex string)
+				$token = bin2hex(random_bytes(32));
+				
+				// Token expires in 24 hours
+				$expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+				
+				// Store token in database
+				$stmt = $smarty->dbh()->prepare("INSERT INTO {$opt["table_prefix"]}password_reset_tokens (userid, token, expires_at) VALUES (?, ?, ?)");
+				$stmt->bindParam(1, $userid, PDO::PARAM_INT);
+				$stmt->bindParam(2, $token, PDO::PARAM_STR);
+				$stmt->bindParam(3, $expiry, PDO::PARAM_STR);
 				$stmt->execute();
-				mail(
+				
+				// Send email with reset link
+				$resetLink = getFullPath("reset-password.php?token=" . urlencode($token));
+				$mailsent = mail(
 					$email,
 					"Gift Registry password reset",
-					"Your Gift Registry account information:\r\n" . 
-						"Your username is '" . $username . "' and your new password is '$pwd'.",
+					"You requested a password reset for your Gift Registry account.\r\n\r\n" . 
+						"Click the link below to set a new password:\r\n" .
+						$resetLink . "\r\n\r\n" .
+						"This link will expire in 24 hours.\r\n\r\n" .
+						"If you did not request this, you can safely ignore this email.",
 					"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-				) or die("Mail not accepted for $email");
+				);
+				
+				if (!$mailsent) {
+					$error = "The password reset email could not be sent. Please try again later.";
+				}
 			}
 			// Note: The code proceeds to display the template even on successful email send.
 		}
