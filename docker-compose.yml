@@ -3,6 +3,9 @@ services:
     build: ./src/
     ports:
       - "8080:80"
+    environment: {}
+    env_file:
+      - ./.env
   mysql:
     build: ./sql/
     ports:

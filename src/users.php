@@ -44,12 +44,12 @@ else
 
 if ($action == "insert" || $action == "update") {
 	/* validate the data. */
-	$username = trim($_GET["username"]);
-	$fullname = trim($_GET["fullname"]);
-	$email = trim($_GET["email"]);
-	$email_msgs = (strtoupper($_GET["email_msgs"]) == "ON" ? 1 : 0);
-	$approved = (strtoupper($_GET["approved"]) == "ON" ? 1 : 0);
-	$userisadmin = (strtoupper($_GET["admin"]) == "ON" ? 1 : 0);
+	$username = isset($_GET["username"]) ? trim($_GET["username"]) : "";
+	$fullname = isset($_GET["fullname"]) ? trim($_GET["fullname"]) : "";
+	$email = isset($_GET["email"]) ? trim($_GET["email"]) : "";
+	$email_msgs = (isset($_GET["email_msgs"]) && strtoupper($_GET["email_msgs"]) == "ON" ? 1 : 0);
+	$approved = (isset($_GET["approved"]) && strtoupper($_GET["approved"]) == "ON" ? 1 : 0);
+	$userisadmin = (isset($_GET["admin"]) && strtoupper($_GET["admin"]) == "ON" ? 1 : 0);
 		
 	$haserror = false;
 	if ($username == "") {
@@ -70,7 +70,7 @@ if ($action == "insert" || $action == "update") {
 if ($action == "delete") {
 	// MySQL is too l4m3 to have cascade deletes, so we'll have to do the
 	// work ourselves.
-	$deluserid = (int) $_GET["userid"];
+	$deluserid = isset($_GET["userid"]) ? (int) $_GET["userid"] : 0;
 	
 	$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}shoppers WHERE shopper = ? OR mayshopfor = ?");
 	$stmt->bindParam(1, $deluserid, PDO::PARAM_INT);
@@ -100,7 +100,7 @@ if ($action == "delete") {
 }
 else if ($action == "edit") {
 	$stmt = $smarty->dbh()->prepare("SELECT username, fullname, email, email_msgs, approved, admin FROM {$opt["table_prefix"]}users WHERE userid = ?");
-	$stmt->bindValue(1, (int) $_GET["userid"], PDO::PARAM_INT);
+	$stmt->bindValue(1, isset($_GET["userid"]) ? (int) $_GET["userid"] : 0, PDO::PARAM_INT);
 	$stmt->execute();
 	if ($row = $stmt->fetch()) {
 		$username = $row["username"];
@@ -133,14 +133,21 @@ else if ($action == "insert") {
 		$stmt->bindParam(7, $userisadmin, PDO::PARAM_BOOL);
 		$stmt->execute();
 
-		mail(
+		$mailsent = mail(
 			$email,
 			"Gift Registry account created",
-			"Your Gift Registry account was created.\r\n" . 
-				"Your username is $username and your password is $pwd.",
+			"Your Gift Registry account was created.\r\n\r\n" . 
+				"Your username is $username.\r\n\r\n" .
+				"Visit " . getFullPath("login.php") . " to log in.\r\n\r\n" .
+				($opt["google_oauth_enabled"] ? "You can log in using Google or you can set a password on the forgot password page.\r\n" : "You can set a password on the forgot password page.\r\n"),
 			"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-		) or die("Mail not accepted for $email");	
-		header("Location: " . getFullPath("users.php?message=User+added+and+e-mail+sent."));
+		);
+		
+		if ($mailsent) {
+			header("Location: " . getFullPath("users.php?message=User+added+and+e-mail+sent."));
+		} else {
+			header("Location: " . getFullPath("users.php?message=User+added+but+e-mail+failed+to+send."));
+		}
 		exit;
 	}
 }
@@ -160,15 +167,15 @@ else if ($action == "update") {
 		$stmt->bindParam(4, $email_msgs, PDO::PARAM_BOOL);
 		$stmt->bindParam(5, $approved, PDO::PARAM_BOOL);
 		$stmt->bindParam(6, $userisadmin, PDO::PARAM_BOOL);
-		$stmt->bindValue(7, (int) $_GET["userid"], PDO::PARAM_INT);
+		$stmt->bindValue(7, isset($_GET["userid"]) ? (int) $_GET["userid"] : 0, PDO::PARAM_INT);
 		$stmt->execute();
 		header("Location: " . getFullPath("users.php?message=User+updated."));
 		exit;		
 	}
 }
 else if ($action == "reset") {
-	$resetuserid = $_GET["userid"];
-	$resetemail = $_GET["email"];
+	$resetuserid = isset($_GET["userid"]) ? $_GET["userid"] : "";
+	$resetemail = isset($_GET["email"]) ? $_GET["email"] : "";
 	
 	// generate a password and insert the row.
 	[$pwd, $hash] = generatePassword($opt);
@@ -176,13 +183,19 @@ else if ($action == "reset") {
 	$stmt->bindParam(1, $hash, PDO::PARAM_STR);
 	$stmt->bindParam(2, $resetuserid, PDO::PARAM_INT);
 	$stmt->execute();
-	mail(
+	
+	$mailsent = mail(
 		$resetemail,
 		"Gift Registry password reset",
 		"Your Gift Registry password was reset to $pwd.",
 		"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-	) or die("Mail not accepted for $email");
-	header("Location: " . getFullPath("users.php?message=Password+reset."));
+	);
+	
+	if ($mailsent) {
+		header("Location: " . getFullPath("users.php?message=Password+reset+and+email+sent."));
+	} else {
+		header("Location: " . getFullPath("users.php?message=Password+reset+but+email+failed+to+send."));
+	}
 	exit;
 }
 else {

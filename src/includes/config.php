@@ -139,7 +139,13 @@ function getGlobalOptions() {
 		/* Session timeout in seconds. Default is 3600 seconds (1 hour).
 			Set to 0 to disable session timeout.
 		*/
-		"session_timeout" => (int)($_ENV['SESSION_TIMEOUT'] ?? 3600)
+		"session_timeout" => (int)($_ENV['SESSION_TIMEOUT'] ?? 3600),
+
+		/* Google OAuth Configuration */
+		"google_oauth_enabled" => (int)($_ENV['GOOGLE_OAUTH_ENABLED'] ?? 0),
+		"google_client_id" => $_ENV['GOOGLE_CLIENT_ID'] ?? "",
+		"google_client_secret" => $_ENV['GOOGLE_CLIENT_SECRET'] ?? "",
+		"google_redirect_uri" => $_ENV['GOOGLE_REDIRECT_URI'] ?? ""
 	);
 }
 ?>

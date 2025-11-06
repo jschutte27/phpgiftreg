@@ -1,0 +1,17 @@
+{
+    "name": "phpgiftreg/gift-registry",
+    "description": "PHP Gift Registry Application with Google OAuth Support",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "google/apiclient": "^2.15"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpGiftReg\\": "src/"
+        }
+    },
+    "config": {
+        "vendor-dir": "src/vendor"
+    }
+}

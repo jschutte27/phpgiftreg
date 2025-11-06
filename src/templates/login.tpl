@@ -58,13 +58,16 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			<h1>Gift Registry</h1>
 		<form name="loginform" id="loginform" method="post" action="login.php" class="well form-horizontal">
 			<fieldset>
-				{if isset($username)}
+				{if isset($login_error)}
 					<div class="alert alert-error">Bad login.</div>
+				{/if}
+				{if isset($oauth_error) && $oauth_error}
+					<div class="alert alert-error">{$oauth_error}</div>
 				{/if}
 				<div class="control-group">
 					<label class="control-label" for="username">Username</label>
 					<div class="controls">
-						<input id="username" name="username" type="text" class="input-xlarge" placeholder="username" />
+						<input id="username" name="username" type="text" class="input-xlarge" placeholder="username" value="{if isset($username)}{$username}{/if}" />
 					</div>
 				</div>
 				<div class="control-group">
@@ -76,6 +79,20 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 				<div class="form-actions">
 					<button type="submit" class="btn btn-primary">Login</button>
 				</div>
+				
+				{if $google_oauth_available}
+				<div class="control-group">
+					<div class="controls" style="text-align: center;">
+						<div style="margin: 20px 0;">
+							<div style="border-top: 1px solid #ccc; margin: 10px 0;"></div>
+							<span style="background: white; padding: 0 10px; color: #666;">or</span>
+						</div>
+						<a href="{$google_auth_url}" class="btn btn-large" style="background-color: #4285f4; color: white;">
+							<i class="icon-user icon-white"></i> Sign in with Google
+						</a>
+					</div>
+				</div>
+				{/if}
 			</fieldset>
 		</form>
 			</div>
@@ -94,7 +111,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 		</div>
 		<div class="row">
 			<div class="span8 offset2" style="text-align: right;">
-				<a href="https://github.com/generalpf/phpgiftreg">PHP Gift Registry version 2.1.2</a>
+				<a href="https://github.com/generalpf/phpgiftreg">PHP Gift Registry version 2.2.0</a>
 			</div>
 		</div>
 	</div>

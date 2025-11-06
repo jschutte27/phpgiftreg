@@ -1,0 +1,11 @@
+# Ignore these files when building Docker image
+.git
+.gitignore
+README.md
+GOOGLE_OAUTH_README.md
+setup-google-oauth.sh
+setup-google-oauth.bat
+.env
+vendor
+node_modules
+*.log

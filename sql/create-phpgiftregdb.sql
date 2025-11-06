@@ -1,7 +1,7 @@
 -- 
 -- Database creation script for PHP Gift Registry (Idempotent Version)
 -- This script can be safely rerun multiple times without errors
--- Updated: October 2025
+-- Updated: November 2025
 -- 
 
 CREATE DATABASE IF NOT EXISTS giftreg;
@@ -157,9 +157,10 @@ CREATE TABLE IF NOT EXISTS `families` (
 CREATE TABLE IF NOT EXISTS `users` (
   `userid` int(11) NOT NULL auto_increment,
   `username` varchar(20) NOT NULL default '',
-  `password` varchar(255) NOT NULL default '',
+  `password` varchar(255) NULL default '',
   `fullname` varchar(50) NOT NULL default '',
   `email` varchar(255) default NULL,
+  `google_id` varchar(255) NULL default NULL,
   `approved` tinyint(1) NOT NULL default '0',
   `admin` tinyint(1) NOT NULL default '0',
   `comment` text,
@@ -167,7 +168,23 @@ CREATE TABLE IF NOT EXISTS `users` (
   `list_stamp` datetime default NULL,
   `initialfamilyid` int NULL,
   PRIMARY KEY  (`userid`),
-  UNIQUE KEY `username` (`username`)  -- Ensure usernames are unique
+  UNIQUE KEY `username` (`username`),  -- Ensure usernames are unique
+  UNIQUE KEY `google_id` (`google_id`)  -- Ensure Google IDs are unique
+);
+
+--
+-- Table structure for table `password_reset_tokens`
+--
+
+CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
+  `token_id` int(11) NOT NULL auto_increment,
+  `userid` int(11) NOT NULL,
+  `token` varchar(64) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` datetime NOT NULL,
+  `used` tinyint(1) NOT NULL default '0',
+  PRIMARY KEY (`token_id`),
+  UNIQUE KEY `token` (`token`)
 );
 
 --
@@ -197,6 +214,8 @@ CREATE INDEX idx_allocs_itemid ON allocs(itemid);
 CREATE INDEX idx_allocs_userid ON allocs(userid);
 CREATE INDEX idx_events_userid ON events(userid);
 CREATE INDEX idx_events_eventdate ON events(eventdate);
+CREATE INDEX idx_password_reset_tokens_userid ON password_reset_tokens(userid);
+CREATE INDEX idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
 
 -- Update password column size for existing installations
 -- This will safely modify the column if it's too small for bcrypt hashes

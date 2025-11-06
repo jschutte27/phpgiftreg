@@ -18,8 +18,30 @@
 require_once(dirname(__FILE__) . "/includes/funcLib.php");
 require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
 
-$smarty = new MySmarty();
-$opt = $smarty->opt(); // Get application options from Smarty instance
+// Include Google OAuth if available
+$googleOAuthAvailable = false;
+$googleAuthUrl = '';
+if (file_exists(dirname(__FILE__) . "/vendor/autoload.php") && 
+    file_exists(dirname(__FILE__) . "/includes/GoogleOAuth.class.php")) {
+    try {
+        require_once(dirname(__FILE__) . "/vendor/autoload.php");
+        require_once(dirname(__FILE__) . "/includes/GoogleOAuth.class.php");
+        
+        $smarty = new MySmarty();
+        $opt = $smarty->opt();
+        
+        if ($opt['google_oauth_enabled']) {
+            $googleOAuth = new GoogleOAuth($opt);
+            $googleOAuthAvailable = true;
+            $googleAuthUrl = $googleOAuth->getAuthUrl();
+        }
+    } catch (Exception $e) {
+        error_log("Google OAuth initialization error: " . $e->getMessage());
+    }
+} else {
+    $smarty = new MySmarty();
+    $opt = $smarty->opt();
+}
 
 // Start secure session with proper configuration
 startSecureSession($opt);
@@ -103,9 +125,38 @@ if (!empty($_POST["username"])) {
 	error_log("Login: Login failed for username: " . $username . " - Error: " . $loginError);
 	$smarty->assign('username', sanitizeOutput($username));
 	$smarty->assign('login_error', $loginError);
+	$smarty->assign('google_oauth_available', $googleOAuthAvailable);
+	$smarty->assign('google_auth_url', $googleAuthUrl);
 	$smarty->display('login.tpl');
 }
 else {
+	// Handle OAuth error messages
+	$oauthError = '';
+	if (isset($_GET['error'])) {
+		switch ($_GET['error']) {
+			case 'oauth_disabled':
+				$oauthError = 'Google login is currently disabled.';
+				break;
+			case 'approval_required':
+				$oauthError = 'Your account requires administrator approval.';
+				break;
+			case 'account_creation_disabled':
+				$oauthError = 'Account creation is disabled. Please contact an administrator.';
+				break;
+			case 'oauth_error':
+			case 'oauth_failed':
+				$details = isset($_GET['details']) ? $_GET['details'] : '';
+				$oauthError = 'Google login failed. ' . sanitizeOutput($details);
+				break;
+			case 'invalid_request':
+				$oauthError = 'Invalid login request.';
+				break;
+		}
+	}
+	
+	$smarty->assign('google_oauth_available', $googleOAuthAvailable);
+	$smarty->assign('google_auth_url', $googleAuthUrl);
+	$smarty->assign('oauth_error', $oauthError);
 	$smarty->display('login.tpl'); // Display the empty login form initially
 }
 ?>
