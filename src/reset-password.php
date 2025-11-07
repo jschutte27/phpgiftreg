@@ -58,7 +58,7 @@ try {
 		if (empty($password)) {
 			$error = "Password is required.";
 		} else if (!validatePassword($password, $opt)) {
-			$error = "Password must be at least " . $opt["MIN_PASSWORD_LENGTH"] . " characters long.";
+			$error = "Password must be at least " . $opt["min_password_length"] . " characters long.";
 		} else if ($password !== $passwordConfirm) {
 			$error = "Passwords do not match.";
 		}
@@ -89,7 +89,7 @@ try {
 	$smarty->assign('username', $username);
 	$smarty->assign('error', $error);
 	$smarty->assign('message', $message);
-	$smarty->assign('MIN_PASSWORD_LENGTH', $opt["MIN_PASSWORD_LENGTH"]);
+	$smarty->assign('MIN_PASSWORD_LENGTH', $opt["min_password_length"]);
 	$smarty->display('reset-password.tpl');
 }
 catch (PDOException $e) {

@@ -313,6 +313,18 @@ $smarty->assign('userid', $userid);
 // Assign data and potential errors to Smarty template
 $smarty->assign('action', $action);
 $smarty->assign('haserror', isset($haserror) ? $haserror : false);
+
+// Initialize variables with defaults if not already set
+if (!isset($description)) $description = "";
+if (!isset($category)) $category = NULL;
+if (!isset($price)) $price = "";
+if (!isset($source)) $source = "";
+if (!isset($ranking)) $ranking = NULL;
+if (!isset($quantity)) $quantity = "";
+if (!isset($url)) $url = "";
+if (!isset($image_filename)) $image_filename = "";
+if (!isset($comment)) $comment = "";
+
 if (isset($_REQUEST['itemid'])) {
 	$smarty->assign('itemid', (int) $_REQUEST['itemid']);
 }

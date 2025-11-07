@@ -14,8 +14,21 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 function getFullPath($url) {
-	$fp = $_SERVER["SERVER_PORT"] == "443" ? "https://" : "http://";
-	$fp .= $_SERVER["HTTP_HOST"];
+	// Check for X-Forwarded-Proto header (indicates HTTPS behind reverse proxy)
+	$scheme = "http://";
+	if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+		$scheme = $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https' ? "https://" : "http://";
+	} else if ($_SERVER["SERVER_PORT"] == "443") {
+		$scheme = "https://";
+	}
+	
+	// Check for X-Forwarded-Host header (original host behind reverse proxy)
+	$host = $_SERVER["HTTP_HOST"];
+	if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+		$host = $_SERVER['HTTP_X_FORWARDED_HOST'];
+	}
+	
+	$fp = $scheme . $host;
 	$dir = dirname($_SERVER["PHP_SELF"]);
 	if ($dir != "/")
 		$fp .= $dir;

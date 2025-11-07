@@ -37,8 +37,15 @@ if (!empty($_GET["message"])) {
 
 $action = empty($_GET["action"]) ? "" : $_GET["action"];
 
+// Initialize variables with defaults
+$familyid = NULL;
 if (!empty($_GET["familyid"]))
 	$familyid = (int) $_GET["familyid"];
+
+// Initialize other variables
+$haserror = false;
+$familyname = "";
+$familyname_error = "";
 
 if ($action == "insert" || $action == "update") {
 	/* validate the data. */
