@@ -18,8 +18,10 @@
 
 require_once(dirname(__FILE__) . "/includes/funcLib.php");
 require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
+require_once(dirname(__FILE__) . "/includes/MailService.class.php");
 $smarty = new MySmarty();
 $opt = $smarty->opt(); // Get application options from Smarty instance
+$mailService = new MailService($opt);
 
 if (isset($_POST["action"]) && $_POST["action"] == "forgot") {
 	$username = $_POST["username"];
@@ -53,15 +55,16 @@ if (isset($_POST["action"]) && $_POST["action"] == "forgot") {
 				
 				// Send email with reset link
 				$resetLink = getFullPath("reset-password.php?token=" . urlencode($token));
-				$mailsent = mail(
+				$message = "You requested a password reset for your Gift Registry account.\r\n\r\n" . 
+					"Click the link below to set a new password:\r\n" .
+					$resetLink . "\r\n\r\n" .
+					"This link will expire in 24 hours.\r\n\r\n" .
+					"If you did not request this, you can safely ignore this email.";
+				
+				$mailsent = $mailService->send(
 					$email,
 					"Gift Registry password reset",
-					"You requested a password reset for your Gift Registry account.\r\n\r\n" . 
-						"Click the link below to set a new password:\r\n" .
-						$resetLink . "\r\n\r\n" .
-						"This link will expire in 24 hours.\r\n\r\n" .
-						"If you did not request this, you can safely ignore this email.",
-					"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
+					$message
 				);
 				
 				if (!$mailsent) {

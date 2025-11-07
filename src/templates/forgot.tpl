@@ -48,7 +48,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 <body>
 	<div class="container" style="padding-top: 30px;">
 
-	{if isset($action) && $action == "forgot" && $error == ""}
+	{if isset($action) && $action == "forgot" && (!isset($error) || $error == "")}
 		<div class="row">
 			<div class="span12">
 				<div class="well">
@@ -65,12 +65,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 					<input type="hidden" name="action" value="forgot">
 					<fieldset>
 						<legend>Reset Your Password</legend>
-						<div class="control-group">
+						<div class="control-group {if isset($error) && $error != ""}warning{/if}">
 							<label class="control-label" for="username">Username</label>
 							<div class="controls">
 								<input id="username" name="username" type="text" class="input-xlarge" value="{if isset($username)}{$username|escape:'htmlall'}{/if}">
-								{if isset($error)}
-									<span class="alert alert-error">{$error|escape:'htmlall'}</span>
+								{if isset($error) && $error != ""}
+									<span class="help-inline">{$error|escape:'htmlall'}</span>
 								{/if}
 								<p class="help-block">
 									Supply your username and click Submit.<br /> 

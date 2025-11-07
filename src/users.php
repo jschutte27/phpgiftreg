@@ -15,8 +15,10 @@
 
 require_once(dirname(__FILE__) . "/includes/funcLib.php");
 require_once(dirname(__FILE__) . "/includes/MySmarty.class.php");
+require_once(dirname(__FILE__) . "/includes/MailService.class.php");
 $smarty = new MySmarty();
 $opt = $smarty->opt();
+$mailService = new MailService($opt);
 
 // Start secure session with proper configuration
 startSecureSession($opt);
@@ -133,14 +135,15 @@ else if ($action == "insert") {
 		$stmt->bindParam(7, $userisadmin, PDO::PARAM_BOOL);
 		$stmt->execute();
 
-		$mailsent = mail(
+		$message = "Your Gift Registry account was created.\r\n\r\n" . 
+			"Your username is $username.\r\n\r\n" .
+			"Visit " . getFullPath("login.php") . " to log in.\r\n\r\n" .
+			($opt["google_oauth_enabled"] ? "You can log in using Google or you can set a password on the forgot password page.\r\n" : "You can set a password on the forgot password page.\r\n");
+		
+		$mailsent = $mailService->send(
 			$email,
 			"Gift Registry account created",
-			"Your Gift Registry account was created.\r\n\r\n" . 
-				"Your username is $username.\r\n\r\n" .
-				"Visit " . getFullPath("login.php") . " to log in.\r\n\r\n" .
-				($opt["google_oauth_enabled"] ? "You can log in using Google or you can set a password on the forgot password page.\r\n" : "You can set a password on the forgot password page.\r\n"),
-			"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
+			$message
 		);
 		
 		if ($mailsent) {
@@ -174,27 +177,51 @@ else if ($action == "update") {
 	}
 }
 else if ($action == "reset") {
-	$resetuserid = isset($_GET["userid"]) ? $_GET["userid"] : "";
+	$resetuserid = isset($_GET["userid"]) ? (int) $_GET["userid"] : 0;
 	$resetemail = isset($_GET["email"]) ? $_GET["email"] : "";
 	
-	// generate a password and insert the row.
-	[$pwd, $hash] = generatePassword($opt);
-	$stmt = $smarty->dbh()->prepare("UPDATE {$opt["table_prefix"]}users SET password = ? WHERE userid = ?");
-	$stmt->bindParam(1, $hash, PDO::PARAM_STR);
-	$stmt->bindParam(2, $resetuserid, PDO::PARAM_INT);
-	$stmt->execute();
-	
-	$mailsent = mail(
-		$resetemail,
-		"Gift Registry password reset",
-		"Your Gift Registry password was reset to $pwd.",
-		"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-	);
-	
-	if ($mailsent) {
-		header("Location: " . getFullPath("users.php?message=Password+reset+and+email+sent."));
+	if ($resetuserid > 0 && !empty($resetemail)) {
+		// Generate a secure token for password reset
+		$token = bin2hex(random_bytes(32));
+		$token_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+		
+		try {
+			// Store the token in the password_reset_tokens table
+			$stmt = $smarty->dbh()->prepare("INSERT INTO {$opt["table_prefix"]}password_reset_tokens(userid, token, expires_at, used) VALUES(?, ?, ?, ?)");
+			$stmt->bindParam(1, $resetuserid, PDO::PARAM_INT);
+			$stmt->bindParam(2, $token, PDO::PARAM_STR);
+			$stmt->bindParam(3, $token_expiry, PDO::PARAM_STR);
+			$used = 0;
+			$stmt->bindParam(4, $used, PDO::PARAM_INT);
+			$stmt->execute();
+			
+			// Build the password reset link
+			$resetLink = getFullPath("reset-password.php?token=" . urlencode($token));
+			
+			$message = "Your Gift Registry password reset request has been received.\r\n\r\n" .
+				"Click the link below to set a new password:\r\n" .
+				$resetLink . "\r\n\r\n" .
+				"This link will expire in 24 hours.\r\n\r\n" .
+				"If you did not request a password reset, please ignore this email.";
+			
+			$mailsent = $mailService->send(
+				$resetemail,
+				"Gift Registry password reset",
+				$message
+			);
+			
+			if ($mailsent) {
+				header("Location: " . getFullPath("users.php?message=Password+reset+email+sent."));
+			} else {
+				header("Location: " . getFullPath("users.php?message=Password+reset+email+failed+to+send."));
+			}
+		}
+		catch (PDOException $e) {
+			error_log("Password reset error: " . $e->getMessage());
+			header("Location: " . getFullPath("users.php?message=Error+processing+password+reset."));
+		}
 	} else {
-		header("Location: " . getFullPath("users.php?message=Password+reset+but+email+failed+to+send."));
+		header("Location: " . getFullPath("users.php?message=Invalid+user+or+email."));
 	}
 	exit;
 }

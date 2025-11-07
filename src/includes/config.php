@@ -145,7 +145,18 @@ function getGlobalOptions() {
 		"google_oauth_enabled" => (int)($_ENV['GOOGLE_OAUTH_ENABLED'] ?? 0),
 		"google_client_id" => $_ENV['GOOGLE_CLIENT_ID'] ?? "",
 		"google_client_secret" => $_ENV['GOOGLE_CLIENT_SECRET'] ?? "",
-		"google_redirect_uri" => $_ENV['GOOGLE_REDIRECT_URI'] ?? ""
+		"google_redirect_uri" => $_ENV['GOOGLE_REDIRECT_URI'] ?? "",
+		
+		/* SMTP Configuration for external mail servers
+			Set SMTP_ENABLED to 1 to use SMTP, 0 to use PHP mail() function
+		*/
+		"SMTP_ENABLED" => (int)($_ENV['SMTP_ENABLED'] ?? 0),
+		"SMTP_HOST" => $_ENV['SMTP_HOST'] ?? "smtp.gmail.com",
+		"SMTP_PORT" => (int)($_ENV['SMTP_PORT'] ?? 587),
+		"SMTP_AUTH" => (int)($_ENV['SMTP_AUTH'] ?? 1),
+		"SMTP_SECURE" => $_ENV['SMTP_SECURE'] ?? "tls",
+		"SMTP_USERNAME" => $_ENV['SMTP_USERNAME'] ?? "",
+		"SMTP_PASSWORD" => $_ENV['SMTP_PASSWORD'] ?? ""
 	);
 }
 ?>
