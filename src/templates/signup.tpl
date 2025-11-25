@@ -106,10 +106,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 			<div class="row">
 				<div class="span8 offset2">
-					<form name="signupform" id="signupform" method="post" action="signup.php" class="well form-horizontal">	
-						<input type="hidden" name="action" value="signup">
-						<fieldset>
-							<legend>Sign Up for the Gift Registry</legend>
+				<form name="signupform" id="signupform" method="post" action="signup.php" class="well form-horizontal">	
+					<input type="hidden" name="action" value="signup">
+					<input type="hidden" name="csrf_token" value="{$csrf_token|escape:'htmlall'}">
+					<fieldset>
+						<legend>Sign Up for the Gift Registry</legend>
 							<div class="control-group">
 								<label class="control-label" for="username">Username</label>
 								<div class="controls">

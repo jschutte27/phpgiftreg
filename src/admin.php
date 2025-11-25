@@ -66,15 +66,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			$stmt->bindValue(1, (int) $_POST["userid"], PDO::PARAM_INT);
 			$stmt->execute();
 			if ($row = $stmt->fetch()) {
+				require_once(dirname(__FILE__) . "/includes/MailService.class.php");
+				$mailService = new MailService($opt);
+				
 				$emailBody = "Your Gift Registry application was approved by " . sanitizeOutput($_SESSION["fullname"]) . ".\r\n" . 
 					"Your username is " . sanitizeOutput($row["username"]) . " and your password is " . sanitizeOutput($pwd) . ".";
+				$emailSubject = "Gift Registry application approved";
 				
-				if (!mail(
-					$row["email"],
-					"Gift Registry application approved",
-					$emailBody,
-					"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-				)) {
+				if (!$mailService->send($row["email"], $emailSubject, $emailBody)) {
 					error_log("Failed to send approval email to: " . $row["email"]);
 				}
 			}
@@ -83,24 +82,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 		// --- Handle Reject User Action ---
 		else if ($action == "reject") {
-			// send the e-mails to the rejected user
-			$stmt = $smarty->dbh()->prepare("SELECT email FROM {$opt["table_prefix"]}users WHERE userid = ?");
-			$stmt->bindValue(1, (int) $_POST["userid"], PDO::PARAM_INT);
-			$stmt->execute();
-			if ($row = $stmt->fetch()) {
-				$emailBody = "Your Gift Registry application was denied by " . sanitizeOutput($_SESSION["fullname"]) . ".";
-				
-				if (!mail(
-					$row["email"],
-					"Gift Registry application denied",
-					$emailBody,
-					"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-				)) {
-					error_log("Failed to send rejection email to: " . $row["email"]);
-				}
+		// send the e-mails to the rejected user
+		$stmt = $smarty->dbh()->prepare("SELECT email FROM {$opt["table_prefix"]}users WHERE userid = ?");
+		$stmt->bindValue(1, (int) $_POST["userid"], PDO::PARAM_INT);
+		$stmt->execute();
+		if ($row = $stmt->fetch()) {
+			require_once(dirname(__FILE__) . "/includes/MailService.class.php");
+			$mailService = new MailService($opt);
+			
+			$emailBody = "Your Gift Registry application was denied by " . sanitizeOutput($_SESSION["fullname"]) . ".";
+			$emailSubject = "Gift Registry application denied";
+			
+			if (!$mailService->send($row["email"], $emailSubject, $emailBody)) {
+				error_log("Failed to send rejection email to: " . $row["email"]);
 			}
-
-			$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}users WHERE userid = ?"); // Delete the user record
+		}			$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}users WHERE userid = ?"); // Delete the user record
 			$stmt->bindValue(1, (int) $_POST["userid"], PDO::PARAM_INT);
 			$stmt->execute();
 			

@@ -126,10 +126,10 @@ else if ($action == "insert") {
 	if (!$haserror) {
 		try {
 			$stmt = $smarty->dbh()->prepare("INSERT INTO {$opt["table_prefix"]}events(userid,description,eventdate,recurring) VALUES(?, ?, ?, ?)");
-			$stmt->bindValue(1, $systemevent ? NULL : $userid, PDO::PARAM_BOOL);
+			$stmt->bindValue(1, $systemevent ? NULL : $userid, $systemevent ? PDO::PARAM_NULL : PDO::PARAM_INT);
 			$stmt->bindParam(2, $description, PDO::PARAM_STR);
 			$stmt->bindValue(3, $eventdate->format("Y-m-d"), PDO::PARAM_STR);
-			$stmt->bindParam(4, $recurring, PDO::PARAM_BOOL);
+			$stmt->bindParam(4, $recurring, PDO::PARAM_INT);
 
 			$stmt->execute();
 		
@@ -150,10 +150,10 @@ else if ($action == "update") {
 				"eventdate = ?, " .
 				"recurring = ? " . 
 				"WHERE eventid = ?");
-			$stmt->bindValue(1, $systemevent ? NULL : $userid, PDO::PARAM_BOOL);
+			$stmt->bindValue(1, $systemevent ? NULL : $userid, $systemevent ? PDO::PARAM_NULL : PDO::PARAM_INT);
 			$stmt->bindParam(2, $description, PDO::PARAM_STR);
 			$stmt->bindValue(3, $eventdate->format("Y-m-d"), PDO::PARAM_STR);
-			$stmt->bindParam(4, $recurring, PDO::PARAM_BOOL);
+			$stmt->bindParam(4, $recurring, PDO::PARAM_INT);
 			$stmt->bindParam(5, $eventid, PDO::PARAM_INT);
 
 			$stmt->execute();
@@ -210,6 +210,7 @@ try {
 	}
 	$smarty->assign('recurring', $recurring);
 	$smarty->assign('systemevent', $systemevent);
+	$smarty->assign('isadmin', $_SESSION["admin"] == 1);
 	if (isset($eventid)) {
 		$smarty->assign('eventid', $eventid);
 	}

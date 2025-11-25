@@ -153,7 +153,7 @@ function sendMessage($sender, $recipient, $message, $dbh, $opt) {
 	$stmt->bindParam(1, $sender, PDO::PARAM_INT);
 	$stmt->bindParam(2, $recipient, PDO::PARAM_INT);
 	$stmt->bindParam(3, $message, PDO::PARAM_STR);
-	$stmt->bindValue(4, strftime("%Y-%m-%d"), PDO::PARAM_STR);
+	$stmt->bindValue(4, date("Y-m-d"), PDO::PARAM_STR);
 	$stmt->execute();
 	
 	// determine if e-mail must be sent.
@@ -165,12 +165,18 @@ function sendMessage($sender, $recipient, $message, $dbh, $opt) {
 	$stmt->execute();
 	if ($row = $stmt->fetch()) {
 		if ($row["email_msgs"] == 1) {
-			mail(
-				$row["remail"],
-				"Gift Registry message from " . $row["fullname"],
-				$row["fullname"] . " <" . $row["semail"] . "> sends:\r\n" . $message,
-				"From: {$opt["email_from"]}\r\nReply-To: " . $row["semail"] . "\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-			) or die("Mail not accepted for " . $row["remail"]);
+			// Use MailService for reliable email delivery
+			require_once(dirname(__FILE__) . "/MailService.class.php");
+			$mailService = new MailService($opt);
+			
+			$emailSubject = "Gift Registry message from " . $row["fullname"];
+			$emailBody = $row["fullname"] . " <" . $row["semail"] . "> sends:\r\n\r\n" . $message;
+			
+			$mailSent = $mailService->send($row["remail"], $emailSubject, $emailBody);
+			
+			if (!$mailSent) {
+				error_log("Failed to send message notification email to " . $row["remail"]);
+			}
 		}
 	}
 	else {
