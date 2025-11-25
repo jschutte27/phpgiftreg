@@ -130,6 +130,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 					{elseif $action == "add" || (isset($haserror) && $action == 'insert')}
 						<input type="hidden" name="action" value="insert">
 					{/if}
+					<input type="hidden" name="csrf_token" value="{$csrf_token|escape:'htmlall'}">
 					<div class="control-group {if isset($description_error)}warning{/if}">
 						<label class="control-label" for="description">Description</label>
 						<div class="controls">
