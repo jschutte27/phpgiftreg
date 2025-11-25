@@ -54,6 +54,10 @@ if (isset($_REQUEST["itemid"]) && $_REQUEST["itemid"] != "") {
 }
 
 $action = "";
+// Handle GET requests to load the form (for add/edit actions)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET["action"])) {
+	$action = $_GET["action"];
+}
 // Handle POST requests for item modifications (secure)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST["action"])) {
 	// Validate CSRF token for all POST actions
@@ -140,115 +144,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST["action"])) {
 		}
 	}
 	
-	// --- Handle Delete Item Action ---
-	if ($action == "delete") {
-		try {
-			/* find out if this item is bought or reserved. */
-			$stmt = $smarty->dbh()->prepare("SELECT a.userid, a.quantity, a.bought, i.description FROM {$opt["table_prefix"]}allocs a LEFT OUTER JOIN {$opt["table_prefix"]}items i ON i.itemid = a.itemid WHERE a.itemid = ?");
-			// Fetch allocation details for the item being deleted
-			$stmt->bindValue(1, (int) $_POST["itemid"], PDO::PARAM_INT);
-			$stmt->execute();
-			$description = ""; // need this outside of the while block.
-			while ($row = $stmt->fetch()) {
-				$buyerid = $row["userid"];
-				$quantity = $row["quantity"];
-				$bought = $row["bought"];
-				$description = sanitizeOutput($row["description"]);	// need this for descriptions.
-				// Send message to users who had allocated this item
-				if ($buyerid != null) {
-					sendMessage($userid,
-						$buyerid,
-						"$description that you " . (($bought == 1) ? "bought" : "reserved") . " $quantity of for " . sanitizeOutput($_SESSION["fullname"]) . " has been deleted.  Check your reservation/purchase to ensure it's still needed.",
-						$smarty->dbh(),
-						$smarty->opt());
-				}
-			}
-	
-			// Delete the associated image file
-			deleteImageForItem((int) $_POST["itemid"], $smarty->dbh(), $smarty->opt());
-
-			// Delete the item record
-			$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}items WHERE itemid = ?");
-			$stmt->bindValue(1, (int) $_POST["itemid"], PDO::PARAM_INT);
-			$stmt->execute();
-
-			// Clean up any orphaned allocation records
-			$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}allocs WHERE itemid = ?");
-			$stmt->bindValue(1, (int) $_POST["itemid"], PDO::PARAM_INT);
-			$stmt->execute();
-		
-			stampUser($userid, $smarty->dbh(), $smarty->opt());
-			processSubscriptions($userid, $action, $description, $smarty->dbh(), $smarty->opt());
-
-			header("Location: " . getFullPath("index.php?message=Item+deleted."));
-			exit;
-			// Note: Execution continues after exit, should be unreachable.
-		}
-		catch (PDOException $e) {
-			die("sql exception: " . $e->getMessage());
-		}
-	}
-	else if ($action == "edit") {
-		// --- Handle Edit Item Action (Fetch Data) ---
-		$stmt = $smarty->dbh()->prepare("SELECT description, price, source, category, url, ranking, comment, quantity, image_filename FROM {$opt["table_prefix"]}items WHERE itemid = ?");
-		$stmt->bindValue(1, (int) $_REQUEST["itemid"], PDO::PARAM_INT);
-		$stmt->execute();
-
-		if ($row = $stmt->fetch()) {
-			$description = $row["description"];
-			$price = number_format($row["price"],2,".",",");
-			$source = $row["source"];
-			$url = $row["url"];
-			$category = $row["category"];
-			$ranking = $row["ranking"];
-			$comment = $row["comment"];
-			$quantity = (int) $row["quantity"];
-			$image_filename = $row["image_filename"];
-		}
-	}
-	// --- Handle Add Item Action (Initialize Form) ---
-	else if ($action == "add") {
-		$description = "";
-		$price = 0.00;
-		$source = "";
-		$url = "";
-		$category = NULL;
-		$ranking = NULL;
-		$comment = "";
-		$quantity = 1;
-		$image_filename = "";
-	}
-	else if ($action == "insert") {
+	if ($action == "insert") {
 		// --- Handle Insert Item Action ---
-		if (!$haserror) {
-			$stmt = $smarty->dbh()->prepare("INSERT INTO {$opt["table_prefix"]}items(userid,description,price,source,category,url,ranking,comment,quantity,image_filename) " .
-			    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-			$stmt->bindParam(1, $userid, PDO::PARAM_INT);
-			$stmt->bindParam(2, $description, PDO::PARAM_STR);
-			$stmt->bindParam(3, $price);
-			$stmt->bindParam(4, $source, PDO::PARAM_STR);
-			$stmt->bindParam(5, $category, PDO::PARAM_INT);
-			$stmt->bindParam(6, $url, PDO::PARAM_STR);
-			$stmt->bindParam(7, $ranking, PDO::PARAM_INT);
-			$stmt->bindParam(8, $comment, PDO::PARAM_STR);
-			$stmt->bindParam(9, $quantity, PDO::PARAM_INT);
-            if (!isset($image_base_filename) || $image_base_filename == "") {
-                $image_base_filename = NULL;
-            }
-			$stmt->bindParam(10, $image_base_filename, PDO::PARAM_STR);
-			$stmt->execute();
-			
-			stampUser($userid, $smarty->dbh(), $smarty->opt());
-			processSubscriptions($userid, $action, $description, $smarty->dbh(), $smarty->opt());
-			// Note: $description might not be set if validation failed before this block.
-			header("Location: " . getFullPath("index.php"));
-			exit;
-			// Note: Execution continues after exit, should be unreachable.
+		if (!isset($haserror) || !$haserror) {
+			try {
+				$stmt = $smarty->dbh()->prepare("INSERT INTO {$opt["table_prefix"]}items(userid,description,price,source,category,url,ranking,comment,quantity,image_filename) " .
+				    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+				$stmt->bindParam(1, $userid, PDO::PARAM_INT);
+				$stmt->bindParam(2, $description, PDO::PARAM_STR);
+				$stmt->bindParam(3, $price);
+				$stmt->bindParam(4, $source, PDO::PARAM_STR);
+				$stmt->bindParam(5, $category, PDO::PARAM_INT);
+				$stmt->bindParam(6, $url, PDO::PARAM_STR);
+				$stmt->bindParam(7, $ranking, PDO::PARAM_INT);
+				$stmt->bindParam(8, $comment, PDO::PARAM_STR);
+				$stmt->bindParam(9, $quantity, PDO::PARAM_INT);
+				
+				// Handle image filename - use NULL if not set
+				$image_filename_value = isset($image_base_filename) ? $image_base_filename : NULL;
+				if (is_null($image_filename_value)) {
+					$stmt->bindValue(10, NULL, PDO::PARAM_NULL);
+				} else {
+					$stmt->bindParam(10, $image_base_filename, PDO::PARAM_STR);
+				}
+				$stmt->execute();
+				
+				stampUser($userid, $smarty->dbh(), $smarty->opt());
+				processSubscriptions($userid, $action, $description, $smarty->dbh(), $smarty->opt());
+				header("Location: " . getFullPath("index.php"));
+				exit;
+			}
+			catch (Exception $e) {
+				error_log("Item insert error: " . $e->getMessage());
+				throw $e;
+			}
 		}
 	}
 	else if ($action == "update") {
 		// --- Handle Update Item Action ---
-		if (!$haserror) {
+		if (!isset($haserror) || !$haserror) {
 			// TODO: if the quantity is updated, send a message to everyone who has an allocation for it.
 			$stmt = $smarty->dbh()->prepare("UPDATE {$opt["table_prefix"]}items SET " .
 					"description = ?, " .
@@ -259,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST["action"])) {
 					"ranking = ?, " .
 					"comment = ?, " . 
 					"quantity = ? " .
-					($image_base_filename != "" ? ", image_filename = ? " : "") .
+					(isset($image_base_filename) && $image_base_filename != "" ? ", image_filename = ? " : "") .
 					"WHERE itemid = ?");
 			$stmt->bindParam(1, $description, PDO::PARAM_STR);
 			$stmt->bindParam(2, $price);
@@ -269,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST["action"])) {
 		    $stmt->bindParam(6, $ranking, PDO::PARAM_INT);
 		    $stmt->bindParam(7, $comment, PDO::PARAM_STR);
 		    $stmt->bindParam(8, $quantity, PDO::PARAM_INT);
-		    if ($image_base_filename != "") {
+		    if (isset($image_base_filename) && $image_base_filename != "") {
 				$stmt->bindParam(9, $image_base_filename, PDO::PARAM_STR);
 				$stmt->bindValue(10, (int) $_REQUEST["itemid"], PDO::PARAM_INT);
 			}
@@ -293,6 +227,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST["action"])) {
 	}
 }
 
+// --- Handle Delete Item Action (GET request) ---
+if ($action == "delete" && isset($_REQUEST["itemid"])) {
+	try {
+		$itemid = (int) $_REQUEST["itemid"];
+		
+		/* find out if this item is bought or reserved. */
+		$stmt = $smarty->dbh()->prepare("SELECT a.userid, a.quantity, a.bought, i.description FROM {$opt["table_prefix"]}allocs a LEFT OUTER JOIN {$opt["table_prefix"]}items i ON i.itemid = a.itemid WHERE a.itemid = ?");
+		// Fetch allocation details for the item being deleted
+		$stmt->bindValue(1, $itemid, PDO::PARAM_INT);
+		$stmt->execute();
+		$description = ""; // need this outside of the while block.
+		while ($row = $stmt->fetch()) {
+			$buyerid = $row["userid"];
+			$quantity = $row["quantity"];
+			$bought = $row["bought"];
+			$description = sanitizeOutput($row["description"]);	// need this for descriptions.
+			// Send message to users who had allocated this item
+			if ($buyerid != null) {
+				sendMessage($userid,
+					$buyerid,
+					"$description that you " . (($bought == 1) ? "bought" : "reserved") . " $quantity of for " . sanitizeOutput($_SESSION["fullname"]) . " has been deleted.  Check your reservation/purchase to ensure it's still needed.",
+					$smarty->dbh(),
+					$smarty->opt());
+			}
+		}
+
+		// Delete the associated image file
+		deleteImageForItem($itemid, $smarty->dbh(), $smarty->opt());
+
+		// Delete the item record
+		$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}items WHERE itemid = ?");
+		$stmt->bindValue(1, $itemid, PDO::PARAM_INT);
+		$stmt->execute();
+
+		// Clean up any orphaned allocation records
+		$stmt = $smarty->dbh()->prepare("DELETE FROM {$opt["table_prefix"]}allocs WHERE itemid = ?");
+		$stmt->bindValue(1, $itemid, PDO::PARAM_INT);
+		$stmt->execute();
+	
+		stampUser($userid, $smarty->dbh(), $smarty->opt());
+		processSubscriptions($userid, $action, $description, $smarty->dbh(), $smarty->opt());
+
+		header("Location: " . getFullPath("index.php?message=Item+deleted."));
+		exit;
+	}
+	catch (PDOException $e) {
+		die("sql exception: " . $e->getMessage());
+	}
+}
+
+// Handle GET requests for loading forms (edit/add)
+if ($action == "edit") {
+	// --- Handle Edit Item Action (Fetch Data) ---
+	$stmt = $smarty->dbh()->prepare("SELECT description, price, source, category, url, ranking, comment, quantity, image_filename FROM {$opt["table_prefix"]}items WHERE itemid = ?");
+	$stmt->bindValue(1, (int) $_REQUEST["itemid"], PDO::PARAM_INT);
+	$stmt->execute();
+
+	if ($row = $stmt->fetch()) {
+		$description = $row["description"];
+		$price = number_format($row["price"],2,".",",");
+		$source = $row["source"];
+		$url = $row["url"];
+		$category = $row["category"];
+		$ranking = $row["ranking"];
+		$comment = $row["comment"];
+		$quantity = (int) $row["quantity"];
+		$image_filename = $row["image_filename"];
+	}
+}
+else if ($action == "add") {
+	// --- Handle Add Item Action (Initialize Form) ---
+	$description = "";
+	$price = 0.00;
+	$source = "";
+	$url = "";
+	$category = NULL;
+	$ranking = NULL;
+	$comment = "";
+	$quantity = 1;
+	$image_filename = "";
+}
+
 $stmt = $smarty->dbh()->prepare("SELECT categoryid, category FROM {$opt["table_prefix"]}categories ORDER BY category");
 // Fetch all categories for the dropdown
 $stmt->execute();
@@ -313,6 +329,10 @@ $smarty->assign('userid', $userid);
 // Assign data and potential errors to Smarty template
 $smarty->assign('action', $action);
 $smarty->assign('haserror', isset($haserror) ? $haserror : false);
+
+// Generate and assign CSRF token for form protection
+$csrf_token = getCSRFToken();
+$smarty->assign('csrf_token', $csrf_token);
 
 // Initialize variables with defaults if not already set
 if (!isset($description)) $description = "";
