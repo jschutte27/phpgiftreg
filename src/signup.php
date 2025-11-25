@@ -67,20 +67,20 @@ if (isset($_POST["action"]) && $_POST["action"] == "signup") {
 						
 					// --- Handle Approval Flow ---
 					if ($opt["newuser_requires_approval"]) {
-						// send the e-mails to the administrators.
-						$stmt = $smarty->dbh()->prepare("SELECT fullname, email FROM {$opt["table_prefix"]}users WHERE admin = 1 AND email IS NOT NULL");
-						$stmt->execute();
-						while ($row = $stmt->fetch()) {
-							$emailBody = sanitizeOutput($fullname) . " <" . sanitizeOutput($email) . "> would like you to approve him/her for access to the Gift Registry.";
-							if (!mail(
-								$row["email"],
-								"Gift Registry approval request for " . sanitizeOutput($fullname),
-								$emailBody,
-								"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-							)) {
-								error_log("Failed to send approval request email to admin: " . $row["email"]);
-							}
+					// send the e-mails to the administrators.
+					require_once(dirname(__FILE__) . "/includes/MailService.class.php");
+					$mailService = new MailService($opt);
+					
+					$stmt = $smarty->dbh()->prepare("SELECT fullname, email FROM {$opt["table_prefix"]}users WHERE admin = 1 AND email IS NOT NULL");
+					$stmt->execute();
+					while ($row = $stmt->fetch()) {
+						$emailBody = sanitizeOutput($fullname) . " <" . sanitizeOutput($email) . "> would like you to approve him/her for access to the Gift Registry.";
+						$emailSubject = "Gift Registry approval request for " . sanitizeOutput($fullname);
+						
+						if (!$mailService->send($row["email"], $emailSubject, $emailBody)) {
+							error_log("Failed to send approval request email to admin: " . $row["email"]);
 						}
+					}
 						$success_message = "Your account has been created and is pending administrator approval. You will receive an email when your account is approved.";
 					} else {
 						// we don't require approval, so immediately send them their initial password.
@@ -99,19 +99,16 @@ if (isset($_POST["action"]) && $_POST["action"] == "signup") {
 							}
 						}
 
+						require_once(dirname(__FILE__) . "/includes/MailService.class.php");
+						$mailService = new MailService($opt);
+						
 						$emailBody = "Your Gift Registry account was created.\r\n" . 
 							"Your username is " . sanitizeOutput($username) . " and your password is " . sanitizeOutput($pwd) . ".";
+						$emailSubject = "Gift Registry account created";
 						
-						if (!mail(
-							$email,
-							"Gift Registry account created",
-							$emailBody,
-							"From: {$opt["email_from"]}\r\nReply-To: {$opt["email_reply_to"]}\r\nX-Mailer: {$opt["email_xmailer"]}\r\n"
-						)) {
+						if (!$mailService->send($email, $emailSubject, $emailBody)) {
 							error_log("Failed to send welcome email to: " . $email);
-						}
-						
-						$success_message = "Your account has been created successfully! Check your email for login credentials.";
+						}						$success_message = "Your account has been created successfully! Check your email for login credentials.";
 					}
 				}
 			} catch (PDOException $e) {
